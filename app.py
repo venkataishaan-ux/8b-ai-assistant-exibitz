@@ -57,12 +57,11 @@ def chat():
         return jsonify({"error": "No session found"}), 400
 
     user_message = request.json.get('message', '')
-    image_b64 = request.json.get('image') # Base64 string from frontend
+    image_b64 = request.json.get('image')
 
     if not user_message and not image_b64:
         return jsonify({"error": "Empty message"}), 400
 
-    # Save text log to history
     log_text = user_message if user_message else "[Sent an image]"
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -70,7 +69,6 @@ def chat():
     conn.commit()
     conn.close()
 
-    # Build multimodal payload for Groq Vision
     content_list = []
     if user_message:
         content_list.append({"type": "text", "text": user_message})
@@ -86,9 +84,4 @@ def chat():
     ]
 
     try:
-        # Using Groq's high-speed vision model
-        completion = client.chat.completions.create(
-            model="meta-llama/llama-4-scout-17b-16e-instruct",
-            messages=messages_payload
-        )
-        ai_response = completion.choices[0].message.content
+        completion =
