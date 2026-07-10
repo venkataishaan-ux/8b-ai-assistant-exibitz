@@ -1,10 +1,11 @@
-import os
+mport os
 import sqlite3
 import uuid
 from flask import Flask, render_template, request, jsonify, make_response
 from groq import Groq
 
-app = Flask(__name__)
+# We added template_folder='.' so Flask looks in your main folder for index.html!
+app = Flask(__name__, template_folder='.')
 
 # Initialize Groq client
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
