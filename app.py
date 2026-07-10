@@ -1,59 +1,118 @@
 import os
-import base64
-from flask import Flask, request, jsonify, render_template_string
+import sqlite3
+import uuid
+from flask import Flask, render_template, request, jsonify, make_response
 from groq import Groq
 
 app = Flask(__name__)
 
-# Paste your private Groq API key here!
-GROQ_API_KEY = "YOUR_GROQ_API_KEY_HERE"
-client = Groq(api_key="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")
+# Initialize Groq client
+client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
-# Simple trick to turn a uploaded picture file into format the AI can read
-def encode_image(file_storage):
-    return base64.b64encode(file_storage.read()).decode('utf-8')
+DB_FILE = "chat_history.db"
+
+def init_db():
+    """Creates the database table if it doesn't exist."""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT,
+            sender TEXT,
+            text TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+init_db()
 
 @app.route('/')
 def home():
-    # Serves your layout from index.html
-    with open('index.html', 'r', encoding='utf-8') as f:
-        return render_template_string(f.read())
+    # Track unique users using a browser cookie
+    session_id = request.cookies.get('session_id')
+    response = make_response(render_template('index.html'))
+    
+    if not session_id:
+        session_id = str(uuid.uuid4())
+        response.set_cookie('session_id', session_id, max_age=60*60*24*365) # 1 year expiry
+        
+    return response
 
-@app.route('/ask', methods=['POST']) # Handles incoming messages
-def ask():
-    user_message = request.form.get('message', '')
-    image_file = request.files.get('image') # Grabs the image if uploaded
+@app.route('/get_history', methods=['GET'])
+def get_history():
+    session_id = request.cookies.get('session_id')
+    if not session_id:
+        return jsonify([])
+        
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT sender, text FROM messages WHERE session_id = ? ORDER BY timestamp ASC", (session_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    
+    history = [{"sender": row[0], "text": row[1]} for row in rows]
+    return jsonify(history)
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    session_id = request.cookies.get('session_id')
+    if not session_id:
+        return jsonify({"error": "No session found"}), 400
+
+    user_message = request.json.get('message')
+    if not user_message:
+        return jsonify({"error": "Empty message"}), 400
+
+    # 1. Save user message to database
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO messages (session_id, sender, text) VALUES (?, ?, ?)", (session_id, 'user', user_message))
+    conn.commit()
+
+    # 2. Fetch recent chat logs for context so the AI remembers the past conversation
+    cursor.execute("SELECT sender, text FROM messages WHERE session_id = ? ORDER BY timestamp ASC LIMIT 20", (session_id,))
+    rows = cursor.fetchall()
+    conn.close()
+
+    # Format history for Groq
+    messages_payload = [{"role": "system", "content": "You are a helpful assistant for Class 8B students."}]
+    for row in rows:
+        role = "user" if row[0] == "user" else "assistant"
+        messages_payload.append({"role": role, "content": row[1]})
 
     try:
-        # Build the message format Groq needs
-        content_payload = [{"type": "text", "text": user_message if user_message else "What is in this image?"}]
-        
-        if image_file and image_file.filename != '':
-            base64_image = encode_image(image_file)
-            content_payload.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:{image_file.content_type};base64,{base64_image}"
-                }
-            })
-
-        # Ask the ultra-fast Llama 4 Vision model
-        chat_completion = client.chat.completions.create(
-            model="meta-llama/llama-4-scout-17b-16e-instruct",
-            messages=[
-                {
-                    "role": "user",
-                    "content": content_payload
-                }
-            ],
-            max_tokens=1024
+        # 3. Get AI response
+        completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=messages_payload
         )
-        
-        ai_response = chat_completion.choices[0].message.content
+        ai_response = completion.choices[0].message.content
+
+        # 4. Save AI response to database
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO messages (session_id, sender, text) VALUES (?, ?, ?)", (session_id, 'bot', ai_response))
+        conn.commit()
+        conn.close()
+
         return jsonify({"response": ai_response})
 
     except Exception as e:
-        return jsonify({"response": f"System error occurred: {str(e)}"}), 500
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/clear_history', methods=['POST'])
+def clear_history():
+    session_id = request.cookies.get('session_id')
+    if session_id:
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
+        conn.commit()
+        conn.close()
+    return jsonify({"status": "cleared"})
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True)
