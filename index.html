@@ -65,7 +65,6 @@
         msgDiv.classList.add('message', sender);
         
         if (sender === 'bot') {
-            // Render markdown text beautifully using the restored library
             msgDiv.innerHTML = marked.parse(text);
         } else {
             msgDiv.innerText = text;
