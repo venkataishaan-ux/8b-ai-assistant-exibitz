@@ -4,24 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Class 8B AI Assistant</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background: linear-gradient(135deg, #0f172a, #1e1b4b); color: white; display: flex; justify-content: center; align-items: center; height: 100vh; padding: 20px; }
-        .chat-container { width: 100%; max-width: 600px; height: 85vh; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
-        .chat-header { background: rgba(255, 255, 255, 0.03); padding: 15px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); display: flex; justify-content: space-between; align-items: center; }
-        .chat-header h2 { font-size: 1.2rem; font-weight: 600; color: #a5b4fc; }
-        .clear-btn { background: transparent; border: 1px solid rgba(239, 68, 68, 0.5); color: #ef4444; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
-        .clear-btn:hover { background: #ef4444; color: white; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', 'Segoe UI', system-ui, sans-serif; }
+        body { background: radial-gradient(circle at top right, #1e1b4b, #0f172a); color: white; display: flex; justify-content: center; align-items: center; height: 100vh; padding: 20px; overflow: hidden; }
+        .chat-container { width: 100%; max-width: 600px; height: 85vh; background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4); }
+        .chat-header { background: rgba(255, 255, 255, 0.02); padding: 15px 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; justify-content: space-between; align-items: center; }
+        .chat-header h2 { font-size: 1.2rem; font-weight: 600; color: #a5b4fc; letter-spacing: 0.5px; }
+        .clear-btn { background: transparent; border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s; }
+        .clear-btn:hover { background: #ef4444; color: white; border-color: #ef4444; }
         .chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
-        .message { max-width: 80%; padding: 12px 16px; border-radius: 12px; line-height: 1.4; font-size: 0.95rem; animation: fadeIn 0.3s ease-in-out; }
-        .user { background: #4f46e5; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
-        .bot { background: rgba(255, 255, 255, 0.1); color: #e2e8f0; align-self: flex-start; border-bottom-left-radius: 2px; }
-        .input-area { padding: 15px; background: rgba(0, 0, 0, 0.2); border-top: 1px solid rgba(255, 255, 255, 0.1); display: flex; gap: 10px; }
-        input { flex: 1; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 12px; color: white; font-size: 1rem; outline: none; }
-        input:focus { border-color: #6366f1; }
-        button.send-btn { background: #4f46e5; border: none; color: white; padding: 0 20px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-        button.send-btn:hover { background: #4338ca; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .message { max-width: 80%; padding: 12px 16px; border-radius: 14px; line-height: 1.5; font-size: 0.95rem; animation: fadeIn 0.25s ease-out; word-break: break-word; }
+        .message p { margin-bottom: 8px; }
+        .message p:last-child { margin-bottom: 0; }
+        .message ul, .message ol { margin-left: 20px; margin-bottom: 8px; }
+        .user { background: #4f46e5; color: white; align-self: flex-end; border-bottom-right-radius: 2px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); }
+        .bot { background: rgba(255, 255, 255, 0.07); color: #e2e8f0; align-self: flex-start; border-bottom-left-radius: 2px; border: 1px solid rgba(255, 255, 255, 0.03); }
+        .input-area { padding: 15px 20px; background: rgba(0, 0, 0, 0.25); border-top: 1px solid rgba(255, 255, 255, 0.08); display: flex; gap: 12px; }
+        input { flex: 1; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 14px; color: white; font-size: 0.95rem; outline: none; transition: border 0.2s; }
+        input:focus { border-color: #6366f1; background: rgba(255, 255, 255, 0.06); }
+        button.send-btn { background: #4f46e5; border: none; color: white; padding: 0 24px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        button.send-btn:hover { background: #4338ca; transform: translateY(-1px); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -42,20 +46,31 @@
     const chatBox = document.getElementById('chatBox');
     const userInput = document.getElementById('userInput');
 
-    // Automatically fetch old chat history when the page loads
+    // Automatically fetch old chat history when page loads
     window.onload = async () => {
-        const response = await fetch('/get_history');
-        const history = await response.json();
-        history.forEach(msg => {
-            appendMessage(msg.text, msg.sender);
-        });
-        scrollToBottom();
+        try {
+            const response = await fetch('/get_history');
+            const history = await response.json();
+            history.forEach(msg => {
+                appendMessage(msg.text, msg.sender);
+            });
+            scrollToBottom();
+        } catch (e) {
+            console.error("Error loading history:", e);
+        }
     };
 
     function appendMessage(text, sender) {
         const msgDiv = document.createElement('div');
         msgDiv.classList.add('message', sender);
-        msgDiv.innerText = text;
+        
+        if (sender === 'bot') {
+            // Render markdown text beautifully using the restored library
+            msgDiv.innerHTML = marked.parse(text);
+        } else {
+            msgDiv.innerText = text;
+        }
+        
         chatBox.appendChild(msgDiv);
         scrollToBottom();
     }
