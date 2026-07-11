@@ -20,7 +20,6 @@
             overflow: hidden; 
         }
         
-        /* Master Layout Split: Sidebar + Main Chat View */
         .app-window {
             width: 100%;
             max-width: 900px;
@@ -35,7 +34,6 @@
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         }
 
-        /* Glass Sidebar Panel */
         .sidebar {
             width: 260px;
             background: rgba(0, 0, 0, 0.2);
@@ -80,10 +78,6 @@
             border-radius: 10px;
             cursor: pointer;
             font-size: 0.9rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            transition: all 0.2s;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -102,11 +96,8 @@
             font-size: 0.8rem;
         }
 
-        .delete-session-btn:hover {
-            color: #ef4444;
-        }
+        .delete-session-btn:hover { color: #ef4444; }
 
-        /* Main View Window */
         .chat-container { 
             flex: 1;
             display: flex; 
@@ -127,7 +118,6 @@
             font-size: 1.3rem; 
             font-weight: 700; 
             color: #ffffff; 
-            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
         .chat-box { 
@@ -145,21 +135,15 @@
             border-radius: 18px; 
             line-height: 1.5; 
             font-size: 0.95rem; 
-            animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
+            animation: fadeIn 0.3s ease; 
             word-break: break-word; 
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
         }
-        
-        .message p { margin-bottom: 8px; }
-        .message p:last-child { margin-bottom: 0; }
-        .message ul, .message ol { margin-left: 20px; margin-bottom: 8px; }
         
         .user { 
             background: #6366f1; 
             color: white; 
             align-self: flex-end; 
             border-bottom-right-radius: 2px; 
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); 
         }
         
         .bot { 
@@ -177,22 +161,15 @@
             gap: 12px; 
         }
         
-        input { 
+        input[type="text"] { 
             flex: 1; 
             background: rgba(255, 255, 255, 0.9); 
-            border: 1px solid transparent; 
+            border: none; 
             border-radius: 12px; 
             padding: 14px; 
             color: #1e293b; 
             font-size: 0.95rem; 
             outline: none; 
-            transition: all 0.2s; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        }
-        
-        input:focus { 
-            background: #ffffff;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5);
         }
         
         button.send-btn { 
@@ -203,15 +180,15 @@
             border-radius: 12px; 
             font-weight: 700; 
             cursor: pointer; 
-            transition: all 0.2s; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
-        
-        button.send-btn:hover { 
-            background: #6366f1; 
-            color: white;
-            transform: translateY(-1px); 
-            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+
+        #imagePreviewContainer {
+            display: none;
+            padding: 8px 24px;
+            background: rgba(0,0,0,0.3);
+            font-size: 0.85rem;
+            align-items: center;
+            gap: 15px;
         }
         
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -230,7 +207,16 @@
             <h2>Class 8B Assistant ✨</h2>
         </div>
         <div class="chat-box" id="chatBox"></div>
+        
+        <div id="imagePreviewContainer">
+            <span id="previewName" style="color: #FFCC70;"></span>
+            <button onclick="clearImagePreview()" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold;">✕ Remove</button>
+        </div>
+
         <div class="input-area">
+            <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="previewImage(this)">
+            <button class="send-btn" onclick="document.getElementById('imageInput').click()" style="padding: 0 15px;">📷</button>
+            
             <input type="text" id="userInput" placeholder="Ask your assistant anything..." onkeypress="handleKeyPress(event)">
             <button class="send-btn" onclick="sendMessage()">Send</button>
         </div>
@@ -241,7 +227,12 @@
     const chatBox = document.getElementById('chatBox');
     const userInput = document.getElementById('userInput');
     const sessionList = document.getElementById('sessionList');
+    const imageInput = document.getElementById('imageInput');
+    const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+    const previewName = document.getElementById('previewName');
+
     let currentSessionId = '';
+    let base64ImageString = '';
 
     window.onload = async () => {
         await loadSessions();
@@ -254,7 +245,6 @@
             sessionList.innerHTML = '';
             
             if (sessions.length === 0) {
-                // If brand new visitor, create an initial chat room tab automatically
                 await createNewChat();
                 return;
             }
@@ -263,13 +253,14 @@
                 const div = document.createElement('div');
                 div.classList.add('session-item');
                 div.id = `session-${session.id}`;
+                if(session.id === currentSessionId) div.classList.add('active');
+                
                 div.innerHTML = `
-                    <span onclick="switchSession('${session.id}')" style="flex:1; overflow:hidden; text-overflow:ellipsis;">${session.title}</span>
+                    <span onclick="switchSession('${session.id}')" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${session.title}</span>
                     <button class="delete-session-btn" onclick="deleteSession(event, '${session.id}')">✕</button>
                 `;
                 sessionList.appendChild(div);
 
-                // Default focus to the top/latest session tab on refresh
                 if (index === 0 && !currentSessionId) {
                     switchSession(session.id);
                 }
@@ -284,9 +275,10 @@
             const response = await fetch('/create_session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: 'New Chat' })
+                body: JSON.stringify({ title: 'New Chat Room' })
             });
             const data = await response.json();
+            currentSessionId = data.session_id;
             await loadSessions();
             switchSession(data.session_id);
         } catch (e) {
@@ -296,8 +288,6 @@
 
     async function switchSession(sessionId) {
         currentSessionId = sessionId;
-        
-        // Visual toggle active highlight states
         document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
         const activeItem = document.getElementById(`session-${sessionId}`);
         if (activeItem) activeItem.classList.add('active');
@@ -312,15 +302,35 @@
             });
             scrollToBottom();
         } catch (e) {
-            console.error("Failed loading room log details:", e);
+            console.error("Failed loading room data details:", e);
         }
+    }
+
+    function previewImage(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            previewName.innerText = `Selected: ${file.name}`;
+            imagePreviewContainer.style.display = 'flex';
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                base64ImageString = e.target.result.split(',')[1];
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function clearImagePreview() {
+        imageInput.value = "";
+        base64ImageString = "";
+        imagePreviewContainer.style.display = 'none';
     }
 
     function appendMessage(text, sender) {
         const msgDiv = document.createElement('div');
-        msgDiv.classList.add('message', sender);
+        msgDiv.classList.add('message', sender === 'user' ? 'user' : 'bot');
         
-        if (sender === 'bot') {
+        if (sender === 'bot' || sender === 'ai') {
             msgDiv.innerHTML = marked.parse(text);
         } else {
             msgDiv.innerText = text;
@@ -336,36 +346,34 @@
 
     async function sendMessage() {
         const text = userInput.value.trim();
-        if (!text || !currentSessionId) return;
+        if (!text && !base64ImageString) return;
+        if (!currentSessionId) return;
 
-        appendMessage(text, 'user');
+        appendMessage(text ? text : "[Sent an image]", 'user');
         userInput.value = '';
+        
+        const imgToSend = base64ImageString;
+        clearImagePreview();
 
         try {
             const response = await fetch(`/chat/${currentSessionId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text })
+                body: JSON.stringify({ message: text, image: imgToSend || null })
             });
             const data = await response.json();
             if (data.response) {
                 appendMessage(data.response, 'bot');
-                // Reload list to refresh tab title names based on the first prompt dynamically
-                await loadSessions();
-                document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
-                const activeItem = document.getElementById(`session-${currentSessionId}`);
-                if (activeItem) activeItem.classList.add('active');
-            } else {
-                appendMessage("Oops, something went wrong.", 'bot');
+                await loadSessions(); // Refresh list to catch dynamic first prompt title update!
             }
         } catch (error) {
-            appendMessage("Error connecting to server.", 'bot');
+            appendMessage("Error connecting to server backend system.", 'bot');
         }
     }
 
     async function deleteSession(event, sessionId) {
-        event.stopPropagation(); // Stops click event from trying to switch to the tab while deleting
-        if (confirm("Delete this conversation tab permanently?")) {
+        event.stopPropagation();
+        if (confirm("Delete this conversation room permanently?")) {
             await fetch(`/clear_session/${sessionId}`, { method: 'POST' });
             if (currentSessionId === sessionId) {
                 currentSessionId = '';
