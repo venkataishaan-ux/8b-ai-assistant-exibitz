@@ -14,7 +14,6 @@ DB_FILE = "chat_history.db"
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    # Table for tracking distinct rooms
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS rooms (
             id TEXT PRIMARY KEY,
@@ -22,7 +21,6 @@ def init_db():
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    # Updated messages table tracking room_id
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,7 +39,6 @@ init_db()
 def home():
     return render_template('index.html')
 
-# Endpoint: Fetch all chat rooms for the sidebar
 @app.route('/get_sessions', methods=['GET'])
 def get_sessions():
     conn = sqlite3.connect(DB_FILE)
@@ -51,7 +48,6 @@ def get_sessions():
     conn.close()
     return jsonify([{"id": row[0], "title": row[1]} for row in rows])
 
-# Endpoint: Create a new distinct chat room
 @app.route('/create_session', methods=['POST'])
 def create_session():
     room_id = str(uuid.uuid4())
@@ -64,7 +60,6 @@ def create_session():
     conn.close()
     return jsonify({"session_id": room_id})
 
-# Endpoint: Fetch the message logs for a specific chat room
 @app.route('/get_history/<room_id>', methods=['GET'])
 def get_history(room_id):
     conn = sqlite3.connect(DB_FILE)
@@ -74,7 +69,6 @@ def get_history(room_id):
     conn.close()
     return jsonify([{"sender": row[0], "text": row[1]} for row in rows])
 
-# Endpoint: Process chat messaging inside a specific room
 @app.route('/chat/<room_id>', methods=['POST'])
 def chat(room_id):
     user_message = request.json.get('message', '')
@@ -83,15 +77,12 @@ def chat(room_id):
     if not user_message and not image_b64:
         return jsonify({"error": "Empty message"}), 400
 
-    log_text = user_message if user_message else "[Sent an image]"
+    log_text = user_message if user_message else "[Sent a picture]"
     
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    
-    # Save user message to this specific room
     cursor.execute("INSERT INTO messages (room_id, sender, text) VALUES (?, ?, ?)", (room_id, 'user', log_text))
     
-    # Optional: Automatically change the room title if it's the first message
     cursor.execute("SELECT COUNT(*) FROM messages WHERE room_id = ?", (room_id,))
     if cursor.fetchone()[0] == 1 and user_message:
         short_title = user_message[:20] + "..." if len(user_message) > 20 else user_message
@@ -100,7 +91,6 @@ def chat(room_id):
     conn.commit()
     conn.close()
 
-    # Build AI payload
     content_list = []
     if user_message:
         content_list.append({"type": "text", "text": user_message})
@@ -113,7 +103,7 @@ def chat(room_id):
         })
 
     messages_payload = [
-        {"role": "system", "content": "You are a smart, friendly AI assistant for Class 8B students. If an image is provided, recognize and describe the items inside details clearly."},
+        {"role": "system", "content": "You are a smart, friendly AI assistant for Class 8B students. Help them understand school questions, math, and diagrams easily."},
         {"role": "user", "content": content_list}
     ]
 
@@ -126,7 +116,6 @@ def chat(room_id):
         )
         ai_response = completion.choices[0].message.content
 
-        # Save bot response to this specific room
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
         cursor.execute("INSERT INTO messages (room_id, sender, text) VALUES (?, ?, ?)", (room_id, 'bot', ai_response))
@@ -139,7 +128,6 @@ def chat(room_id):
         print(f"Error: {e}")
         return jsonify({"error": "Failed to process request"}), 500
 
-# Endpoint: Clean delete individual rooms out completely
 @app.route('/clear_session/<room_id>', methods=['POST'])
 def clear_session(room_id):
     conn = sqlite3.connect(DB_FILE)
