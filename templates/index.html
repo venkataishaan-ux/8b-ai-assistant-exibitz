@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Class 8B AI Assistant</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {
             --bg-gradient: linear-gradient(135deg, #1e1e2f, #111119);
@@ -12,6 +13,7 @@
             --bot-bubble: #3b3b54;
             --text-color: #f5f5fa;
             --accent-color: #a29bfe;
+            --sidebar-bg: #1a1a26;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -20,8 +22,83 @@
             background: var(--bg-gradient);
             color: var(--text-color);
             display: flex;
-            flex-direction: column;
             height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Split Screen Container Setup */
+        .app-layout {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            width: 280px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid #33334d;
+            display: flex;
+            flex-direction: column;
+            padding: 20px 15px;
+        }
+
+        .new-chat-btn {
+            background-color: var(--user-bubble);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: 0.2s;
+            text-align: center;
+        }
+        .new-chat-btn:hover { background-color: #5b4cc4; }
+
+        .session-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .session-item {
+            padding: 12px;
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid #33334d;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: 0.2s;
+        }
+        .session-item:hover, .session-item.active {
+            background-color: var(--bot-bubble);
+            border-color: var(--accent-color);
+        }
+
+        .delete-session-btn {
+            background: transparent;
+            border: none;
+            color: #ff7675;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 0 4px;
+        }
+        .delete-session-btn:hover { color: #d63031; }
+
+        /* Main View Chat Interface Panels */
+        .main-chat-view {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: transparent;
         }
 
         header {
@@ -35,18 +112,6 @@
         }
 
         h1 { font-size: 1.4rem; color: var(--accent-color); }
-
-        .clear-btn {
-            background-color: #ff7675;
-            color: #fff;
-            border: none;
-            padding: 8px 14px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: 0.2s;
-        }
-        .clear-btn:hover { background-color: #d63031; }
 
         #chat-container {
             flex: 1;
@@ -65,6 +130,10 @@
             word-wrap: break-word;
             animation: fadeIn 0.3s ease-in-out;
         }
+        .message p { margin-bottom: 6px; }
+        .message p:last-child { margin-bottom: 0; }
+        .message ul, .message ol { margin-left: 20px; }
+
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
         .user-message {
@@ -80,7 +149,6 @@
             border: 1px solid #444466;
         }
 
-        /* Preview area for image selection */
         #preview-container {
             padding: 10px 20px;
             background-color: rgba(255, 255, 255, 0.05);
@@ -116,7 +184,6 @@
             border-top: 1px solid #33334d;
         }
 
-        /* File button design */
         .file-label {
             background-color: #3b3b54;
             color: var(--accent-color);
@@ -159,26 +226,34 @@
 </head>
 <body>
 
-    <header>
-        <h1>🏫 Class 8B Multi-Modal Assistant</h1>
-        <button class="clear-btn" onclick="clearHistory()">Clear Chat</button>
-    </header>
+    <div class="app-layout">
+        <div class="sidebar">
+            <button class="new-chat-btn" onclick="createNewChat()">+ New Chat</button>
+            <div class="session-list" id="sessionList"></div>
+        </div>
 
-    <div id="chat-container"></div>
+        <div class="main-chat-view">
+            <header>
+                <h1>🏫 Class 8B Multi-Modal Assistant</h1>
+            </header>
 
-    <div id="preview-container">
-        <img id="preview-img" src="" alt="Preview">
-        <button class="cancel-img-btn" onclick="removeImage()">✕</button>
-        <span style="font-size: 0.85rem; color: #aaa;">Image attached ready to send</span>
+            <div id="chat-container"></div>
+
+            <div id="preview-container">
+                <img id="preview-img" src="" alt="Preview">
+                <button class="cancel-img-btn" onclick="removeImage()">✕</button>
+                <span style="font-size: 0.85rem; color: #aaa;">Image attached ready to send</span>
+            </div>
+
+            <footer>
+                <label for="image-input" class="file-label">📎</label>
+                <input type="file" id="image-input" accept="image/*" onchange="previewFile()">
+                
+                <input type="text" id="user-input" placeholder="Ask a question or upload a diagram..." onkeypress="handleKeyPress(event)">
+                <button class="send-btn" onclick="sendMessage()">Send</button>
+            </footer>
+        </div>
     </div>
-
-    <footer>
-        <label for="image-input" class="file-label">📎</label>
-        <input type="file" id="image-input" accept="image/*" onchange="previewFile()">
-        
-        <input type="text" id="user-input" placeholder="Ask a question or upload a diagram..." onkeypress="handleKeyPress(event)">
-        <button class="send-btn" onclick="sendMessage()">Send</button>
-    </footer>
 
     <script>
         const chatContainer = document.getElementById('chat-container');
@@ -186,31 +261,105 @@
         const imageInput = document.getElementById('image-input');
         const previewContainer = document.getElementById('preview-container');
         const previewImg = document.getElementById('preview-img');
+        const sessionList = document.getElementById('sessionList');
+        
+        let currentSessionId = '';
         let currentBase64Image = null;
 
-        // Load conversation logs when page loads
+        // Initialize lists on document ready
         window.onload = async () => {
-            const res = await fetch('/get_history');
-            const history = await res.json();
-            history.forEach(msg => appendMessage(msg.sender === 'user' ? 'user' : 'bot', msg.text));
+            await loadSessions();
         };
+
+        async function loadSessions() {
+            try {
+                const res = await fetch('/get_sessions');
+                const sessions = await res.json();
+                sessionList.innerHTML = '';
+                
+                if (sessions.length === 0) {
+                    await createNewChat();
+                    return;
+                }
+
+                sessions.forEach((session, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'session-item';
+                    div.id = `session-${session.id}`;
+                    if(session.id === currentSessionId) div.classList.add('active');
+                    
+                    div.innerHTML = `
+                        <span onclick="switchSession('${session.id}')" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${session.title}</span>
+                        <button class="delete-session-btn" onclick="deleteSession(event, '${session.id}')">✕</button>
+                    `;
+                    sessionList.appendChild(div);
+
+                    if (index === 0 && !currentSessionId) {
+                        switchSession(session.id);
+                    }
+                });
+            } catch (e) {
+                console.error("Error loading chat sessions:", e);
+            }
+        }
+
+        async function createNewChat() {
+            try {
+                const res = await fetch('/create_session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: 'New Chat Room' })
+                });
+                const data = await res.json();
+                currentSessionId = data.session_id;
+                await loadSessions();
+                switchSession(data.session_id);
+            } catch (e) {
+                console.error("Failed creating a new chat room:", e);
+            }
+        }
+
+        async function switchSession(sessionId) {
+            currentSessionId = sessionId;
+            document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
+            const activeItem = document.getElementById(`session-${sessionId}`);
+            if (activeItem) activeItem.classList.add('active');
+
+            chatContainer.innerHTML = '';
+
+            try {
+                const res = await fetch(`/get_history/${sessionId}`);
+                const history = await res.json();
+                history.forEach(msg => {
+                    appendMessage(msg.sender === 'user' ? 'user' : 'bot', msg.text);
+                });
+            } catch (e) {
+                console.error("Failed loading room log logs:", e);
+            }
+        }
 
         function appendMessage(sender, text) {
             const msgDiv = document.createElement('div');
             msgDiv.className = `message ${sender}-message`;
-            msgDiv.innerText = text;
+            
+            if (sender === 'bot') {
+                // Renders neat markdown structures out of raw strings
+                msgDiv.innerHTML = marked.parse(text);
+            } else {
+                msgDiv.innerText = text;
+            }
+            
             chatContainer.appendChild(msgDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        // Handle image selection preview
         function previewFile() {
             const file = imageInput.files[0];
             if (!file) return;
 
             const reader = new FileReader();
             reader.onloadend = function () {
-                currentBase64Image = reader.result.split(',')[1]; // Get only the base64 string bytes
+                currentBase64Image = reader.result.split(',')[1];
                 previewImg.src = reader.result;
                 previewContainer.style.display = 'flex';
             }
@@ -228,54 +377,54 @@
             const img = currentBase64Image;
 
             if (!text && !img) return;
+            if (!currentSessionId) return;
 
-            // If text exists, display it; if image layout exists without text, display fallback indicator
-            if (text) {
-                appendMessage('user', text);
-            } else if (img) {
-                appendMessage('user', "[Sent a picture]");
-            }
+            appendMessage('user', text ? text : "[Sent a picture]");
 
             userInput.value = '';
-            removeImage(); // Hide preview layout immediately after sending
+            removeImage();
 
-            // Append a dynamic loading block
             const loadingDiv = document.createElement('div');
             loadingDiv.className = 'message bot-message';
-            loadingDiv.innerText = 'Analyzing...';
+            loadingDiv.innerText = 'Analyzing room data...';
             chatContainer.appendChild(loadingDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
 
             try {
-                const response = await fetch('/chat', {
+                const res = await fetch(`/chat/${currentSessionId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message: text, image: img })
                 });
-                const data = await response.json();
+                const data = await res.json();
                 
-                chatContainer.removeChild(loadingDiv); // Remove placeholder
+                chatContainer.removeChild(loadingDiv);
                 
                 if (data.response) {
                     appendMessage('bot', data.response);
+                    await loadSessions(); // Updates room name on sidebar if first prompt
                 } else {
-                    appendMessage('bot', "Error: " + (data.error || "Unknown response glitch"));
+                    appendMessage('bot', "Error: " + (data.error || "glitch"));
                 }
             } catch (err) {
-                chatContainer.removeChild(loadingDiv);
-                appendMessage('bot', "Could not reach server.");
+                if(loadingDiv.parentNode) chatContainer.removeChild(loadingDiv);
+                appendMessage('bot', "Could not reach server system backend.");
+            }
+        }
+
+        async function deleteSession(event, sessionId) {
+            event.stopPropagation();
+            if (confirm("Delete this conversation room permanently?")) {
+                await fetch(`/clear_session/${sessionId}`, { method: 'POST' });
+                if (currentSessionId === sessionId) {
+                    currentSessionId = '';
+                }
+                await loadSessions();
             }
         }
 
         function handleKeyPress(e) {
             if (e.key === 'Enter') sendMessage();
-        }
-
-        async function clearHistory() {
-            if (confirm("Clear your conversation history?")) {
-                await fetch('/clear_history', { method: 'POST' });
-                chatContainer.innerHTML = '';
-            }
         }
     </script>
 </body>
