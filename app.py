@@ -109,7 +109,7 @@ def chat(room_id):
 
     try:
         completion = client.chat.completions.create(
-            model="llama-3.2-90b-vision",
+            model="llama-3.2-90b-vision-instruct",
             messages=messages_payload,
             temperature=0.7,
             max_tokens=1024
