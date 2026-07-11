@@ -8,7 +8,7 @@ from groq import Groq
 app = Flask(__name__)
 
 # Initialize Groq client
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+client = 
 
 DB_FILE = "chat_history.db"
 
@@ -73,15 +73,43 @@ def chat():
     if user_message:
         content_list.append({"type": "text", "text": user_message})
     if image_b64:
+        # Strip data URL prefix if the frontend sends it with it
+        if "," in image_b64:
+            image_b64 = image_b64.split(",")[1]
+            
         content_list.append({
             "type": "image_url",
             "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}
         })
 
     messages_payload = [
-        {"role": "system", "content": "You are a smart, friendly AI assistant for Class 8B students. You can analyze both text and images."},
+        {"role": "system", "content": "You are a smart, friendly AI assistant for Class 8B students. You can analyze both text and images. If an image is provided, identify and describe the objects in it clearly."},
         {"role": "user", "content": content_list}
     ]
 
     try:
-        completion =
+        # Fixed and completed the Groq API call using a vision model
+        completion = client.chat.completions.create(
+            model="llama-3.2-11b-vision-preview",
+            messages=messages_payload,
+            temperature=0.7,
+            max_tokens=1024
+        )
+        
+        ai_response = completion.choices[0].message.content
+
+        # Save AI response to the database
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO messages (session_id, sender, text) VALUES (?, ?, ?)", (session_id, 'ai', ai_response))
+        conn.commit()
+        conn.close()
+
+        return jsonify({"response": ai_response})
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"error": "Failed to process your request with Groq"}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True)
