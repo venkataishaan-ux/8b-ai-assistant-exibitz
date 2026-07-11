@@ -1,8 +1,7 @@
 import os
 import sqlite3
 import uuid
-from flask import Flask, render_template, request, jsonify, make_response
-from groq import Groq
+from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
 
@@ -14,10 +13,19 @@ DB_FILE = "chat_history.db"
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
+    # Table for tracking distinct rooms
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS rooms (
+            id TEXT PRIMARY KEY,
+            title TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    # Updated messages table tracking room_id
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT,
+            room_id TEXT,
             sender TEXT,
             text TEXT,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -26,96 +34,120 @@ def init_db():
     conn.commit()
     conn.close()
 
-# Ensure database and table exist when the app starts
 init_db()
 
 @app.route('/')
 def home():
-    session_id = request.cookies.get('session_id')
-    response = make_response(render_template('index.html'))
-    if not session_id:
-        session_id = str(uuid.uuid4())
-        response.set_cookie('session_id', session_id, max_age=60*60*24*365)
-    return response
+    return render_template('index.html')
 
-@app.route('/get_history', methods=['GET'])
-def get_history():
-    session_id = request.cookies.get('session_id')
-    if not session_id:
-        return jsonify([])
+# Endpoint: Fetch all chat rooms for the sidebar
+@app.route('/get_sessions', methods=['GET'])
+def get_sessions():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT sender, text FROM messages WHERE session_id = ? ORDER BY timestamp ASC", (session_id,))
+    cursor.execute("SELECT id, title FROM rooms ORDER BY created_at DESC")
+    rows = cursor.fetchall()
+    conn.close()
+    return jsonify([{"id": row[0], "title": row[1]} for row in rows])
+
+# Endpoint: Create a new distinct chat room
+@app.route('/create_session', methods=['POST'])
+def create_session():
+    room_id = str(uuid.uuid4())
+    title = request.json.get('title', 'New Chat')
+    
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO rooms (id, title) VALUES (?, ?)", (room_id, title))
+    conn.commit()
+    conn.close()
+    return jsonify({"session_id": room_id})
+
+# Endpoint: Fetch the message logs for a specific chat room
+@app.route('/get_history/<room_id>', methods=['GET'])
+def get_history(room_id):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT sender, text FROM messages WHERE room_id = ? ORDER BY timestamp ASC", (room_id,))
     rows = cursor.fetchall()
     conn.close()
     return jsonify([{"sender": row[0], "text": row[1]} for row in rows])
 
-@app.route('/chat', methods=['POST'])
-def chat():
-    session_id = request.cookies.get('session_id')
-    if not session_id:
-        return jsonify({"error": "No session found"}), 400
-
+# Endpoint: Process chat messaging inside a specific room
+@app.route('/chat/<room_id>', methods=['POST'])
+def chat(room_id):
     user_message = request.json.get('message', '')
     image_b64 = request.json.get('image')
 
     if not user_message and not image_b64:
         return jsonify({"error": "Empty message"}), 400
 
-    # Log user action in the database
     log_text = user_message if user_message else "[Sent an image]"
+    
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO messages (session_id, sender, text) VALUES (?, ?, ?)", (session_id, 'user', log_text))
+    
+    # Save user message to this specific room
+    cursor.execute("INSERT INTO messages (room_id, sender, text) VALUES (?, ?, ?)", (room_id, 'user', log_text))
+    
+    # Optional: Automatically change the room title if it's the first message
+    cursor.execute("SELECT COUNT(*) FROM messages WHERE room_id = ?", (room_id,))
+    if cursor.fetchone()[0] == 1 and user_message:
+        short_title = user_message[:20] + "..." if len(user_message) > 20 else user_message
+        cursor.execute("UPDATE rooms SET title = ? WHERE id = ?", (short_title, room_id))
+        
     conn.commit()
     conn.close()
 
-    # Build the payload for the AI
+    # Build AI payload
     content_list = []
     if user_message:
         content_list.append({"type": "text", "text": user_message})
-    
     if image_b64:
-        # If the frontend includes 'data:image/jpeg;base64,', strip it out
         if "," in image_b64:
             image_b64 = image_b64.split(",")[1]
-            
         content_list.append({
             "type": "image_url",
             "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}
         })
 
     messages_payload = [
-        {
-            "role": "system", 
-            "content": "You are a smart, friendly AI assistant for Class 8B students. You can analyze both text and images. If an image is provided, identify and describe the objects in it clearly."
-        },
+        {"role": "system", "content": "You are a smart, friendly AI assistant for Class 8B students. If an image is provided, recognize and describe the items inside details clearly."},
         {"role": "user", "content": content_list}
     ]
 
     try:
-        # Send payload to Groq's vision-capable model
         completion = client.chat.completions.create(
             model="llama-3.2-11b-vision-preview",
             messages=messages_payload,
             temperature=0.7,
             max_tokens=1024
         )
-        
         ai_response = completion.choices[0].message.content
 
-        # Save AI response to the database
+        # Save bot response to this specific room
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO messages (session_id, sender, text) VALUES (?, ?, ?)", (session_id, 'ai', ai_response))
+        cursor.execute("INSERT INTO messages (room_id, sender, text) VALUES (?, ?, ?)", (room_id, 'bot', ai_response))
         conn.commit()
         conn.close()
 
         return jsonify({"response": ai_response})
 
     except Exception as e:
-        print(f"Error calling Groq API: {e}")
-        return jsonify({"error": "Failed to process your request with the AI model"}), 500
+        print(f"Error: {e}")
+        return jsonify({"error": "Failed to process request"}), 500
+
+# Endpoint: Clean delete individual rooms out completely
+@app.route('/clear_session/<room_id>', methods=['POST'])
+def clear_session(room_id):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM rooms WHERE id = ?", (room_id,))
+    cursor.execute("DELETE FROM messages WHERE room_id = ?", (room_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "success"})
 
 if __name__ == '__main__':
     app.run(debug=True)
