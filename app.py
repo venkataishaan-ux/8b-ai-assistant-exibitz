@@ -2,6 +2,7 @@ import os
 import sqlite3
 import uuid
 from flask import Flask, render_template, request, jsonify
+from groq import groq
 
 app = Flask(__name__)
 
