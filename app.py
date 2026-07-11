@@ -126,7 +126,7 @@ def chat(room_id):
 
     except Exception as e:
         print(f"Error: {e}")
-        return jsonify({"error": "Failed to process request"}), 500
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/clear_session/<room_id>', methods=['POST'])
 def clear_session(room_id):
