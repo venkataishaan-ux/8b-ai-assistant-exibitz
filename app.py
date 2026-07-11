@@ -1,14 +1,13 @@
 import os
 import sqlite3
 import uuid
-import base64
 from flask import Flask, render_template, request, jsonify, make_response
 from groq import Groq
 
 app = Flask(__name__)
 
-# Initialize Groq client
-client = 
+# Initialize Groq client securely using environment variables
+client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 DB_FILE = "chat_history.db"
 
@@ -27,6 +26,7 @@ def init_db():
     conn.commit()
     conn.close()
 
+# Ensure database and table exist when the app starts
 init_db()
 
 @app.route('/')
@@ -62,6 +62,7 @@ def chat():
     if not user_message and not image_b64:
         return jsonify({"error": "Empty message"}), 400
 
+    # Log user action in the database
     log_text = user_message if user_message else "[Sent an image]"
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -69,11 +70,13 @@ def chat():
     conn.commit()
     conn.close()
 
+    # Build the payload for the AI
     content_list = []
     if user_message:
         content_list.append({"type": "text", "text": user_message})
+    
     if image_b64:
-        # Strip data URL prefix if the frontend sends it with it
+        # If the frontend includes 'data:image/jpeg;base64,', strip it out
         if "," in image_b64:
             image_b64 = image_b64.split(",")[1]
             
@@ -83,12 +86,15 @@ def chat():
         })
 
     messages_payload = [
-        {"role": "system", "content": "You are a smart, friendly AI assistant for Class 8B students. You can analyze both text and images. If an image is provided, identify and describe the objects in it clearly."},
+        {
+            "role": "system", 
+            "content": "You are a smart, friendly AI assistant for Class 8B students. You can analyze both text and images. If an image is provided, identify and describe the objects in it clearly."
+        },
         {"role": "user", "content": content_list}
     ]
 
     try:
-        # Fixed and completed the Groq API call using a vision model
+        # Send payload to Groq's vision-capable model
         completion = client.chat.completions.create(
             model="llama-3.2-11b-vision-preview",
             messages=messages_payload,
@@ -108,8 +114,8 @@ def chat():
         return jsonify({"response": ai_response})
 
     except Exception as e:
-        print(f"Error: {e}")
-        return jsonify({"error": "Failed to process your request with Groq"}), 500
+        print(f"Error calling Groq API: {e}")
+        return jsonify({"error": "Failed to process your request with the AI model"}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
