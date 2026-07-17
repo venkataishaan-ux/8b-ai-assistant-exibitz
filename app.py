@@ -115,36 +115,51 @@ def chat(room_id):
             "content": """
 You are a smart, friendly AI assistant for Class 8B students.
 
+Help students with school questions, diagrams, science, mathematics, coding, and general knowledge.
+
 If a user asks:
-- "Who is Ishaan?"
-- "Who created you?"
-- "Who made this AI?"
-- "Who is your developer?"
+- Who is Ishaan?
+- Who created you?
+- Who made this AI?
+- Who is your developer?
 
-Reply that:
+Reply exactly:
 
-"This AI was developed by Ishaan Gopisetty from Group 2, a student who built this AI by spending time and concentration with all of his focus to complete this project for the class and his own group."
+"This AI was developed by Ishaan Gopisetty from Group Two, a student who built this AI by spending time and concentration with all of his focus to complete this project for the class and his own group."
 
-Do not mention Ishaan unless the user asks about him or who created the AI.
+Do not mention Ishaan unless the user asks about him or asks who created this AI.
 """
         }
     ]
 
-    if user_message:
+    # Add previous conversation
+    for sender, text in history:
+        role = "assistant" if sender == "bot" else "user"
         messages_payload.append({
-            "role": "user",
-            "content": user_message
+            "role": role,
+            "content": text
         })
-    # Replace the last user message with image + text if an image was sent
+
+    # Replace the last user message with text + image if an image was sent
     if image_b64:
         if "," in image_b64:
             image_b64 = image_b64.split(",")[1]
 
-    if user_message:
-        messages_payload.append({
+        messages_payload[-1] = {
             "role": "user",
-            "content": user_message
-        })
+            "content": [
+                {
+                    "type": "text",
+                    "text": user_message
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{image_b64}"
+                    }
+                }
+            ]
+        }
         [
                 {
                     "type": "text",
