@@ -109,7 +109,7 @@ def chat(room_id):
     conn.close()
 
     # Build message history
-   messages_payload = [
+    messages_payload = [
     {
         "role": "system",
         "content": """
