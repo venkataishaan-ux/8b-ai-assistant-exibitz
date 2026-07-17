@@ -109,20 +109,26 @@ def chat(room_id):
     conn.close()
 
     # Build message history
-    messages_payload = [
-        {
-            "role": "system",
-            "content": "You are a smart, friendly AI assistant for Class 8B students. Help them understand school questions, math, and diagrams easily."
-        }
-    ]
+   messages_payload = [
+    {
+        "role": "system",
+        "content": """
+You are a smart, friendly AI assistant for Class 8B students.
 
-    for sender, text in history:
-        role = "assistant" if sender == "bot" else "user"
-        messages_payload.append({
-            "role": role,
-            "content": text
-        })
+If a user asks:
+- "Who is Ishaan?"
+- "Who created you?"
+- "Who made this AI?"
+- "Who is your developer?"
 
+Reply that:
+
+"This AI was developed by Ishaan Gopisetty, a student who built it using Python, Flask, SQLite, and the Groq API. He designed the application and improved it with AI assistance for debugging and development."
+
+Do not mention Ishaan unless the user asks about him or who created the AI.
+"""
+    }
+]
     # Replace the last user message with image + text if an image was sent
     if image_b64:
         if "," in image_b64:
