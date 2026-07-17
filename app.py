@@ -1,3 +1,16 @@
+import os
+import sqlite3
+import uuid
+
+from flask import flask,
+render_template, request, jsonify
+from groq import Groq
+
+app = Flask(__name__)
+
+client =
+Groq(api_key=os.environ.get("GROQ_API_KEY"))
+
 @app.route('/chat/<room_id>', methods=['POST'])
 def chat(room_id):
     user_message = request.json.get('message', '')
