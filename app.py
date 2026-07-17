@@ -108,11 +108,11 @@ def chat(room_id):
 
     conn.close()
 
-    # Build message history
+ # Build message history
     messages_payload = [
-    {
-        "role": "system",
-        "content": """
+        {
+            "role": "system",
+            "content": """
 You are a smart, friendly AI assistant for Class 8B students.
 
 If a user asks:
@@ -123,12 +123,18 @@ If a user asks:
 
 Reply that:
 
-"This AI was developed by Ishaan Gopisetty, a student who built it using Python, Flask, SQLite, and the Groq API. He designed the application and improved it with AI assistance for debugging and development."
+"This AI was developed by Ishaan Gopisetty from Group 2, a student who built this AI by spending time and concentration with all of his focus to complete this project for the class and his own group."
 
 Do not mention Ishaan unless the user asks about him or who created the AI.
 """
-    }
-]
+        }
+    ]
+
+    if user_message:
+        messages_payload.append({
+            "role": "user",
+            "content": user_message
+        })
     # Replace the last user message with image + text if an image was sent
     if image_b64:
         if "," in image_b64:
