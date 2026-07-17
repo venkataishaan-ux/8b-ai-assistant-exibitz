@@ -134,9 +134,12 @@ Do not mention Ishaan unless the user asks about him or who created the AI.
         if "," in image_b64:
             image_b64 = image_b64.split(",")[1]
 
-        messages_payload[-1] = {
+    if user_message:
+        messages_payload.append({
             "role": "user",
-            "content": [
+            "content": user_message
+        })
+        [
                 {
                     "type": "text",
                     "text": user_message
