@@ -172,7 +172,6 @@ Do not mention Ishaan unless the user asks about him or asks who created this AI
                     }
                 }
             ]
-        }
 
     try:
         completion = client.chat.completions.create(
