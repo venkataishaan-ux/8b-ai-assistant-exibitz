@@ -214,7 +214,7 @@ Do not mention Ishaan unless the user specifically asks about him or asks who cr
             ]
         }
 
-    try:
+       try:
         completion = client.chat.completions.create(
             model="meta-llama/llama-4-scout-17b-16e-instruct",
             messages=messages_payload,
@@ -222,7 +222,7 @@ Do not mention Ishaan unless the user specifically asks about him or asks who cr
             max_tokens=1024
         )
 
-            ai_response = completion.choices[0].message.content
+        ai_response = completion.choices[0].message.content
 
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
