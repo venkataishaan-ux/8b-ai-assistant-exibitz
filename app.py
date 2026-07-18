@@ -162,7 +162,7 @@ if image_b64:
         ]
     }
 
-try:
+    try:
         completion = client.chat.completions.create(
             model="meta-llama/llama-4-scout-17b-16e-instruct",
             messages=messages_payload,
