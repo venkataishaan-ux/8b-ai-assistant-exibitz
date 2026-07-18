@@ -211,8 +211,8 @@ Be polite, friendly, accurate, and helpful in every response.
     }
 ]
 
-    # Add previous conversation
-    for sender, text in history:
+# Add previous conversation
+for sender, text in history:
         role = "assistant" if sender == "bot" else "user"
 
         messages_payload.append({
