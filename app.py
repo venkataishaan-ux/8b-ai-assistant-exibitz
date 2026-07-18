@@ -216,7 +216,7 @@ Do not mention Ishaan unless the user specifically asks about him or asks who cr
 
     try:
         completion = client.chat.completions.create(
-            model="meta-llama/llama-4-scout-17b-16e-instruct",
+            model="qwen/qwen3.6-27b",
             messages=messages_payload,
             temperature=0.7,
             max_tokens=1024
