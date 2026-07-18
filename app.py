@@ -171,7 +171,6 @@ try:
         max_tokens=1024
     )
 
-
         ai_response = completion.choices[0].message.content
 
         conn = sqlite3.connect(DB_FILE)
