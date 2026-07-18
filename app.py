@@ -241,7 +241,7 @@ if image_b64:
             ]
         }
 
-    try:
+try:
         completion = client.chat.completions.create(
             model="qwen/qwen3.6-27b",
             messages=messages_payload,
