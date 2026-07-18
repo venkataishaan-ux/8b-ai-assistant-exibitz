@@ -100,19 +100,21 @@ def chat(room_id):
     conn.commit()
 
     # Load previous conversation
-    cursor.execute(
-        "SELECT sender, text FROM messages WHERE room_id = ? ORDER BY timestamp ASC",
-        (room_id,)
-    )
-    history = cursor.fetchall()
+    conn.commit()
 
-    conn.close()
+# Load previous conversation
+cursor.execute(
+    "SELECT sender, text FROM messages WHERE room_id = ? ORDER BY timestamp ASC",
+    (room_id,)
+)
+history = cursor.fetchall()
+conn.close()
 
- # Build message history
-    messages_payload = [
-        {
-            "role": "system",
-            "content": """
+# Build message history
+messages_payload = [
+    {
+        "role": "system",
+        "content": """
 You are a smart, friendly AI assistant for Class 8B students.
 
 Help students with school questions, diagrams, science, mathematics, coding, and general knowledge.
@@ -129,57 +131,46 @@ Reply exactly:
 
 Do not mention Ishaan unless the user asks about him or asks who created this AI.
 """
-        }
-    ]
+    }
+]
 
-    # Add previous conversation
-    for sender, text in history:
-        role = "assistant" if sender == "bot" else "user"
-        messages_payload.append({
-            "role": role,
-            "content": text
-        })
+# Add previous conversation
+for sender, text in history:
+    role = "assistant" if sender == "bot" else "user"
+    messages_payload.append({
+        "role": role,
+        "content": text
+    })
 
-    # Replace the last user message with text + image if an image was sent
-    if image_b64:
-        if "," in image_b64:
-            image_b64 = image_b64.split(",")[1]
+# Replace the last user message with text + image if an image was sent
+if image_b64:
+    if "," in image_b64:
+        image_b64 = image_b64.split(",")[1]
 
-        messages_payload[-1] = {
-            "role": "user",
-            "content": [
-                {
-                    "type": "text",
-                    "text": user_message
-                },
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/jpeg;base64,{image_b64}"
-                    }
+    messages_payload[-1] = {
+        "role": "user",
+        "content": [
+            {
+                "type": "text",
+                "text": user_message
+            },
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{image_b64}"
                 }
-            ]
-        }
-        [
-                {
-                    "type": "text",
-                    "text": user_message
-                },
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/jpeg;base64,{image_b64}"
-                    }
-                }
-            ]
+            }
+        ]
+    }
 
-    try:
-        completion = client.chat.completions.create(
-            model="meta-llama/llama-4-scout-17b-16e-instruct",
-            messages=messages_payload,
-            temperature=0.7,
-            max_tokens=1024
-        )
+try:
+    completion = client.chat.completions.create(
+        model="meta-llama/llama-4-scout-17b-16e-instruct",
+        messages=messages_payload,
+        temperature=0.7,
+        max_tokens=1024
+    )
+
 
         ai_response = completion.choices[0].message.content
 
