@@ -220,6 +220,7 @@ Do not mention Ishaan unless the user specifically asks about him or asks who cr
             messages=messages_payload,
             temperature=0.7,
             max_tokens=1024
+        )
 
             ai_response = completion.choices[0].message.content
 
