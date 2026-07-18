@@ -220,8 +220,8 @@ for sender, text in history:
             "content": text
         })
 
-    # If an image was sent, replace the last user message
-    if image_b64:
+# If an image was sent, replace the last user message
+if image_b64:
         if "," in image_b64:
             image_b64 = image_b64.split(",")[1]
 
