@@ -111,7 +111,6 @@ def get_history(room_id):
         for row in rows
     ])
 
-
 @app.route('/chat/<room_id>', methods=['POST'])
 def chat(room_id):
     user_message = request.json.get("message", "")
@@ -161,10 +160,10 @@ def chat(room_id):
     conn.close()
 
     # Build message history
-messages_payload = [
-    {
-        "role": "system",
-        "content": """
+    messages_payload = [
+        {
+            "role": "system",
+            "content": """
 You are a smart, friendly AI assistant for Class 8B students.
 
 Your job is to help students with:
@@ -174,25 +173,18 @@ Your job is to help students with:
 - Social Studies
 - Coding
 - Diagrams
-- General knowledge
+- General Knowledge
 - Homework and study tips
 
-Always explain answers clearly and simply so Class 8 students can understand.
+Always explain answers clearly and simply.
 
-If you do not know an answer, say so honestly instead of making up information.
+If you do not know an answer, say so honestly.
 
-Never reveal your internal reasoning, thinking process, planning, analysis, or chain of thought.
+Never reveal your reasoning, thinking process, analysis, planning, or chain of thought.
 
-Never output text such as:
-- "Here's my thinking process"
-- "Reasoning:"
-- "Analysis:"
-- "Thought process:"
-- "Self-correction:"
+Only provide the final answer.
 
-Only provide the final answer to the user.
-
-Never pretend to forget previous messages in the current chat. The conversation history is part of the current session. If a user asks you to forget previous messages, politely explain that only starting a new chat or clearing the chat can remove the conversation history.
+Never pretend to forget previous messages in the current chat. If a user asks you to forget previous messages, politely explain that the conversation history remains until the user starts a new chat or clears the chat.
 
 If a user asks:
 - Who is Ishaan?
@@ -206,13 +198,13 @@ Reply exactly:
 
 Do not mention Ishaan unless the user specifically asks about him or asks who created this AI.
 
-Be polite, friendly, accurate, and helpful in every response.
+Be polite, friendly, accurate and helpful in every response.
 """
-    }
-]
+        }
+    ]
 
-# Add previous conversation
-for sender, text in history:
+    # Add previous conversation
+    for sender, text in history:
         role = "assistant" if sender == "bot" else "user"
 
         messages_payload.append({
@@ -220,8 +212,8 @@ for sender, text in history:
             "content": text
         })
 
-# If an image was sent, replace the last user message
-if image_b64:
+    # Replace the last user message with image + text if an image was sent
+    if image_b64:
         if "," in image_b64:
             image_b64 = image_b64.split(",")[1]
 
@@ -230,7 +222,7 @@ if image_b64:
             "content": [
                 {
                     "type": "text",
-                    "text": user_message
+                    "text": user_message or "please descibe this image"
                 },
                 {
                     "type": "image_url",
@@ -241,9 +233,9 @@ if image_b64:
             ]
         }
 
-try:
+    try:
         completion = client.chat.completions.create(
-            model="qwen/qwen3.6-27b",
+            model="meta-llama/llama-4-maverick-17b-128e-instruct",
             messages=messages_payload,
             temperature=0.7,
             max_tokens=1024
@@ -269,7 +261,7 @@ try:
     except Exception as e:
         print(f"Error: {e}")
         return jsonify({
-            "error": "Failed to process request"
+            "error": str(e)
         }), 500
 
 
@@ -294,6 +286,7 @@ def clear_session(room_id):
     return jsonify({
         "status": "success"
     })
+
 
 if __name__ == "__main__":
     app.run(debug=True)
