@@ -187,7 +187,7 @@ if image_b64:
 
     except Exception as e:
         print(f"Error: {e}")
-        return jsonify({"error": "Failed to process request"}), 500
+        return jsonify({"error": "Failed to process request"})
 
 
 @app.route('/clear_session/<room_id>', methods=['POST'])
