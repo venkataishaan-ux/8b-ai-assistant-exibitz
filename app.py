@@ -102,7 +102,6 @@ def chat(room_id):
     # Load previous conversation
     conn.commit()
 
-# Load previous conversation
 cursor.execute(
     "SELECT sender, text FROM messages WHERE room_id = ? ORDER BY timestamp ASC",
     (room_id,)
@@ -164,12 +163,12 @@ if image_b64:
     }
 
 try:
-    completion = client.chat.completions.create(
-        model="meta-llama/llama-4-scout-17b-16e-instruct",
-        messages=messages_payload,
-        temperature=0.7,
-        max_tokens=1024
-    )
+        completion = client.chat.completions.create(
+            model="meta-llama/llama-4-scout-17b-16e-instruct",
+            messages=messages_payload,
+            temperature=0.7,
+            max_tokens=1024
+        )
 
         ai_response = completion.choices[0].message.content
 
@@ -189,14 +188,19 @@ try:
     except Exception as e:
         print(f"Error: {e}")
         return jsonify({"error": "Failed to process request"}), 500
+
+
 @app.route('/clear_session/<room_id>', methods=['POST'])
 def clear_session(room_id):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
+
     cursor.execute("DELETE FROM rooms WHERE id = ?", (room_id,))
     cursor.execute("DELETE FROM messages WHERE room_id = ?", (room_id,))
+
     conn.commit()
     conn.close()
+
     return jsonify({"status": "success"})
 
 if __name__ == '__main__':
