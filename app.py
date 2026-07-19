@@ -1,14 +1,27 @@
 import os
 import sqlite3
 import uuid
+import base64
+
 from flask import Flask, render_template, request, jsonify
+
 from groq import Groq
+from google import genai
 
 app = Flask(__name__)
 
-# Initialize Groq client
-client = Groq(
+# -----------------------------
+# Initialize AI Clients
+# -----------------------------
+
+# Groq (Text Chat)
+groq_client = Groq(
     api_key=os.environ.get("GROQ_API_KEY")
+)
+
+# Gemini (Image Understanding)
+gemini_client = genai.Client(
+    api_key=os.environ.get("GEMINI_API_KEY")
 )
 
 DB_FILE = "chat_history.db"
@@ -159,11 +172,10 @@ def chat(room_id):
     history = cursor.fetchall()
     conn.close()
 
-    # Build message history
-    messages_payload = [
-        {
-            "role": "system",
-            "content": """
+    # -----------------------------
+    # SYSTEM PROMPT
+    # -----------------------------
+    system_prompt = """
 You are a smart, friendly AI assistant for Class 8B students.
 
 Your job is to help students with:
@@ -184,7 +196,7 @@ Never reveal your reasoning, thinking process, analysis, planning, or chain of t
 
 Only provide the final answer.
 
-Never pretend to forget previous messages in the current chat. If a user asks you to forget previous messages, politely explain that the conversation history remains until the user starts a new chat or clears the chat.
+Never pretend to forget previous messages in the current chat.
 
 If a user asks:
 - Who is Ishaan?
@@ -196,74 +208,95 @@ Reply exactly:
 
 "This AI was developed by Ishaan Gopisetty from Group Two, a student who built this AI by spending time and concentration with all of his focus to complete this project for the class and his own group."
 
-Do not mention Ishaan unless the user specifically asks about him or asks who created this AI.
+Do not mention Ishaan unless asked.
 
-Be polite, friendly, accurate and helpful in every response.
+Be polite, friendly, accurate and helpful.
 """
-        }
-    ]
 
-    # Add previous conversation
-    for sender, text in history:
-        role = "assistant" if sender == "bot" else "user"
-
-        messages_payload.append({
-            "role": role,
-            "content": text
-        })
-
-    # Replace the last user message with image + text if an image was sent
+    # -----------------------------
+    # IMAGE REQUEST → GEMINI
+    # -----------------------------
     if image_b64:
+
         if "," in image_b64:
             image_b64 = image_b64.split(",")[1]
 
-        messages_payload[-1] = {
-            "role": "user",
-            "content": [
-                {
-                    "type": "text",
-                    "text": user_message or "please descibe this image"
-                },
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/jpeg;base64,{image_b64}"
+        try:
+
+            image_bytes = base64.b64decode(image_b64)
+
+            response = gemini_client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[
+                    user_message or "Describe this image in detail.",
+                    {
+                        "mime_type": "image/jpeg",
+                        "data": image_bytes
                     }
+                ]
+            )
+
+            ai_response = response.text
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    # -----------------------------
+    # TEXT REQUEST → GROQ
+    # -----------------------------
+    else:
+
+        messages_payload = [
+            {
+                "role": "system",
+                "content": system_prompt
+            }
+        ]
+
+        for sender, text in history:
+            role = "assistant" if sender == "bot" else "user"
+
+            messages_payload.append(
+                {
+                    "role": role,
+                    "content": text
                 }
-            ]
-        }
+            )
 
-    try:
-        completion = client.chat.completions.create(
-            model="openai/gpt-oss-120b",
-            messages=messages_payload,
-            temperature=0.7,
-            max_tokens=1024
-        )
+        try:
 
-        ai_response = completion.choices[0].message.content
+            completion = groq_client.chat.completions.create(
+                model="openai/gpt-oss-120b",
+                messages=messages_payload,
+                temperature=0.7,
+                max_tokens=1024
+            )
 
-        conn = sqlite3.connect(DB_FILE)
-        cursor = conn.cursor()
+            ai_response = completion.choices[0].message.content
 
-        cursor.execute(
-            "INSERT INTO messages (room_id, sender, text) VALUES (?, ?, ?)",
-            (room_id, "bot", ai_response)
-        )
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
-        conn.commit()
-        conn.close()
+    # -----------------------------
+    # SAVE AI RESPONSE
+    # -----------------------------
 
-        return jsonify({
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "INSERT INTO messages (room_id, sender, text) VALUES (?, ?, ?)",
+        (room_id, "bot", ai_response)
+    )
+
+    conn.commit()
+    conn.close()
+
+    return jsonify(
+        {
             "response": ai_response
-        })
-
-    except Exception as e:
-        print(f"Error: {e}")
-        return jsonify({
-            "error": str(e)
-        }), 500
-
+        }
+    )
 
 @app.route('/clear_session/<room_id>', methods=['POST'])
 def clear_session(room_id):
