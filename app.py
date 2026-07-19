@@ -235,7 +235,7 @@ Be polite, friendly, accurate and helpful in every response.
 
     try:
         completion = client.chat.completions.create(
-            model="YOLO v12",
+            model="YOLOv12n",
             messages=messages_payload,
             temperature=0.7,
             max_tokens=1024
