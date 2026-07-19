@@ -227,7 +227,7 @@ Be polite, friendly, accurate and helpful.
             image_bytes = base64.b64decode(image_b64)
 
             response = gemini_client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.1-flash-lite",
                 contents=[
                     user_message or "Describe this image in detail.",
                     types.Part.from_bytes(
