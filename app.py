@@ -235,7 +235,7 @@ Be polite, friendly, accurate and helpful in every response.
 
     try:
         completion = client.chat.completions.create(
-            model="Gemini 2.5 Flash",
+            model="meta-llama/llama-4-scout",
             messages=messages_payload,
             temperature=0.7,
             max_tokens=1024
