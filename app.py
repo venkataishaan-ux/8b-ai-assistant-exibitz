@@ -226,18 +226,18 @@ Be polite, friendly, accurate and helpful.
 
             image_bytes = base64.b64decode(image_b64)
 
-            response = gemini_client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=[
-                    user_message or "Describe this image in detail.",
-                    {
-                        "mime_type": "image/jpeg",
-                        "data": image_bytes
-                    }
-                ]
-            )
+           response = gemini_client.models.generate_content(
+    model="gemini-2.5-flash",
+    contents=[
+        user_message or "Describe this image in detail.",
+        types.Part.from_bytes(
+            data=image_bytes,
+            mime_type="image/jpeg"
+        )
+    ]
+)
 
-            ai_response = response.text
+ai_response = response.text
 
         except Exception as e:
             return jsonify({"error": str(e)}), 500
