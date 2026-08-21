@@ -163,7 +163,7 @@ def reply_to_image(message, image, mime_type):
     client = get_gemini_client()
 
     response = client.models.generate_content(
-        model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+        model=os.getenv("GEMINI_MODEL", "gemini-3.6-flash"),
         contents=[
             prompt,
             types.Part.from_bytes(data=image, mime_type=mime_type)
