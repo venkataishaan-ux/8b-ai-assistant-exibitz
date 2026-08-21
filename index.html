@@ -29,33 +29,29 @@
     const escapeHtml=s=>String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
     const addMessage=(text,type)=>{welcome.style.display='none';const item=document.createElement('div');item.className=`message ${type==='user'?'user':'bot'}`;item.innerHTML=`<div class="sender-icon">${type==='user'?'You':'8B'}</div><div class="bubble">${escapeHtml(text)}</div>`;messages.append(item);messages.scrollTop=messages.scrollHeight};
     async function newChat(){try{const r=await fetch('/create_session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:'New Chat'})});const d=await r.json();if(!r.ok)throw Error(d.error);sessionId=d.session_id;localStorage.setItem('eightBSessionId',sessionId);messages.innerHTML='';messages.append(welcome);welcome.style.display='block';drawer.classList.remove('open');backdrop.classList.remove('open');input.focus()}catch{toast('Could not start a new chat. Please try again.')}}
-    async function ensureSession(){
-    if(!sessionId){
-        await newChat();
+    async function ensureSession() {
+    if (sessionId) return sessionId;
+
+    try {
+        const r = await fetch('/create_session', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({title: 'New Chat'})
+        });
+
+        const d = await r.json();
+
+        if (!r.ok || !d.session_id) {
+            throw new Error(d.error || 'Could not create session');
+        }
+
+        sessionId = d.session_id;
+        localStorage.setItem('eightBSessionId', sessionId);
+
         return sessionId;
-    }
-
-    try{
-        const r=await fetch('/get_history/'+encodeURIComponent(sessionId));
-
-        if(r.ok){
-            return sessionId;
-        }
-
-        if(r.status===404){
-            localStorage.removeItem('eightBSessionId');
-            sessionId=null;
-            await newChat();
-            return sessionId;
-        }
-
-        throw new Error('Could not verify chat session.');
-    }catch(error){
-        if(!sessionId){
-            await newChat();
-            return sessionId;
-        }
-        throw error;
+    } catch (err) {
+        console.error('Session creation failed:', err);
+        throw err;
     }
 }
     async function openHistory(){drawer.classList.add('open');backdrop.classList.add('open');historyList.innerHTML='<div class="history-loading">Loading your conversations…</div>';try{const r=await fetch('/get_sessions');const sessions=await r.json();if(!sessions.length){historyList.innerHTML='<div class="empty-history">No chats saved yet.<br>Start a new conversation whenever you’re ready.</div>';return}historyList.innerHTML=sessions.map(s=>`<button class="history-item" data-id="${s.id}"><span>◌</span><div><b>${escapeHtml(s.title||'New Chat')}</b><small>Click to reopen this conversation</small></div></button>`).join('');historyList.querySelectorAll('.history-item').forEach(b=>b.addEventListener('click',()=>loadChat(b.dataset.id)))}catch{historyList.innerHTML='<div class="empty-history">We could not load your chat history.</div>'}}
