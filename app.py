@@ -159,14 +159,21 @@ def reply_to_text(history):
 
 def reply_to_image(message, image, mime_type):
     prompt = f"{SYSTEM_PROMPT}\n\nStudent request: {message or 'Describe this image and help me understand it.'}"
-    response = get_gemini_client().models.generate_content(
+
+    client = get_gemini_client()
+
+    response = client.models.generate_content(
         model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
-        contents=[prompt, types.Part.from_bytes(data=image, mime_type=mime_type)],
+        contents=[
+            prompt,
+            types.Part.from_bytes(data=image, mime_type=mime_type)
+        ],
     )
+
     if not response.text:
         raise RuntimeError("The AI could not read that image. Try another image.")
-    return response.text.strip()
 
+    return response.text.strip()
 
 @app.get("/")
 def home():
