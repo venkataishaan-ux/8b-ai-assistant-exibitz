@@ -149,7 +149,7 @@ def reply_to_text(history):
         model=os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
         messages=messages,
         temperature=0.4,
-        max_tokens=900,
+        max_tokens=2048,
     )
     answer = completion.choices[0].message.content
     if not answer:
